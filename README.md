@@ -53,9 +53,10 @@ them in place at start (`startos/shims.ts`). Each backend fix is a regex
 replacement that no-ops when its pattern is absent. They cover RPC methods BCHD
 and Flowee do not implement, a `smallint` block `tx_count` column too narrow for
 BCH block sizes, and a truthy check that dropped a legitimate zero from the
-websocket init payload; on the frontend, missing mining-pool assets, missing
-non-mainnet nginx routes, and a `hex2ascii` pipe that left raw control bytes
-from coinbase scriptsig on screen.
+websocket init payload; on the frontend, mining-pool SVGs served from the
+image (the old bchexplorer.cash proxy returns 403), missing non-mainnet nginx
+routes, and a `hex2ascii` pipe that left raw control bytes from coinbase
+scriptsig on screen.
 
 The backend command clears a stale PID file and any orphaned listener before
 exec'ing `start.sh`, which otherwise refuses to start after an unclean exit.
@@ -161,9 +162,15 @@ is dialed through BCHD's plaintext proxy binding rather than its native RPC.
 | Action                  | Purpose                                            | Visibility | Availability | Input                     | Output |
 | ----------------------- | -------------------------------------------------- | ---------- | ------------ | ------------------------- | ------ |
 | **Select Node Backend** | Choose the node the explorer reads chain data from | Enabled    | Any status   | One of BCHN, BCHD, Flowee | None   |
+| **Repair MariaDB**      | Delete `tc.log` and restart after a crash-loop     | Enabled    | Any status   | None                      | Count of removed logs |
 
-Writing the selection is what restarts the explorer: `main` reads it through a
+Writing the node selection is what restarts the explorer: `main` reads it through a
 reactive `.const()` read.
+
+**Repair MariaDB** mounts the `db` volume and deletes every `tc.log` (the
+transaction-coordinator log). MariaDB refuses to start when that file has a bad
+magic header after an unclean shutdown or a full disk. A StartOS Rebuild remakes
+the container but leaves the file on the volume. Indexed explorer data is kept.
 
 ---
 
@@ -223,9 +230,10 @@ user — through a critical task on Flowee — to register it there.
 2. **One chain at a time.** Upstream can serve several chains from one
    deployment; here the chain follows the selected node, and only that chain's
    routes and toggles are enabled.
-3. **Mining-pool logos and the BCH/USD price chart need outbound clearnet
-   access.** Both are fetched from `bchexplorer.cash`; without an outbound gateway
-   set on the service, the pool dashboard and price chart stay blank.
+3. **The BCH/USD price chart needs outbound clearnet access.** Pool logos are
+   served from the frontend image. Unnamed chipnet miners still show the
+   Unknown icon (no matching coinbase tag). Without an outbound gateway the
+   price chart stays blank.
 4. **Lightning features are absent.** Bitcoin Cash has no Lightning Network, so
    upstream mempool's Lightning explorer does not apply.
 5. **Address lookups require Fulcrum BCH.** The backend runs in Electrum mode;
@@ -292,4 +300,5 @@ startos_managed_env_vars:
   - ROOT_NETWORK
 actions:
   - select-node
+  - repair-mariadb
 ```
