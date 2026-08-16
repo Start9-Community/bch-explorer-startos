@@ -1,16 +1,10 @@
-import { storeJson } from './fileModels/store.json'
 import { sdk } from './sdk'
 
-export const { createBackup, restoreInit } = sdk.setupBackups(
-  async ({ effects }) =>
-    sdk.Backups.withMysqlDump({
-      imageId: 'db',
-      dbVolume: 'db',
-      datadir: '/var/lib/mysql',
-      database: 'explorer',
-      user: 'explorer',
-      password: async () => (await storeJson.read().once())?.dbPassword ?? '',
-      engine: 'mariadb',
-      readyCommand: ['healthcheck.sh', '--connect', '--innodb_initialized'],
-    }).addVolume('main'),
+export const { createBackup, restoreInit } = sdk.setupBackups(async () =>
+  // The MariaDB index is derived entirely from the node and the indexer, so the
+  // `db` volume is not backed up at all — a restored install rebuilds it, the
+  // same trade Fulcrum and electrs make. Only `store.json` is worth carrying:
+  // the Flowee credential in it is registered on Flowee, so minting a new one
+  // would mean answering that task again. `/cache` is the backend's own scratch.
+  sdk.Backups.ofVolumes('main').setOptions({ exclude: ['/cache'] }),
 )
