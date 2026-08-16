@@ -75,14 +75,7 @@ const RPC_BINDINGS: Record<
     ssl: false,
   },
   bchd: { hostId: bchdPlaintextHostId, port: () => bchdPlaintextPort },
-  flowee: {
-    hostId: floweeRpcHostId,
-    // helix-nine Flowee pins RPC to mainnet 8332 on every chain (no
-    // networkPorts export). Follow that published contract so this package
-    // typechecks against flowee-the-hub-startos#next.
-    port: () => floweeRpcPort,
-    ssl: false,
-  },
+  flowee: { hostId: floweeRpcHostId, port: () => floweeRpcPort, ssl: false },
 }
 
 /**
