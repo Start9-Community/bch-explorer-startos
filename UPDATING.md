@@ -33,6 +33,9 @@ pin is in `startos/manifest/index.ts`, at the `dockerTag` of `images.frontend` a
 ## Applying the bump
 
 1. Set both `dockerTag` values in `startos/manifest/index.ts` to the new version.
+   Then re-check every patch in `startos/shims.ts` against the new images. They are regex
+   and `sed`/`awk` replacements that no-op silently when their pattern stops matching, so
+   an upstream rename removes the fix rather than failing the build.
 2. Raise `version` in `startos/versions/current.ts` to `<new upstream>:0` and
    rewrite its `releaseNotes` in all five locales. Only add a new version file if
    the bump needs a migration — see

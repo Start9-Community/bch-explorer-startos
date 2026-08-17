@@ -245,11 +245,4 @@ health_checks:
   - db # displayed "Database"
   - api # displayed "API"; also re-reads the node's chain and restarts on a change
   - web # displayed "Web UI"
-backup_strategy: the main volume only, excluding /cache — the db volume is derived and skipped
-notes:
-  - the backend's start.sh refuses to run with a stale PID file, so the command clears it first
-  - Flowee's task is raised from the action, not setupDependencies — input-not-matches can't judge a hash
-  - regtest throws: there is no frontend for it
-  - patches are regex replacements that no-op when absent, so upstream fixes cost nothing
-  - store.json is worth backing up only because the Flowee credential is registered on Flowee's side
 ```
