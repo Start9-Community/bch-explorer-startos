@@ -18,19 +18,23 @@ Freshly scaffolded? Work the
 guide page, not a file in this repo — read it, don't copy it in.
 
 Keep `README.md` (technical reference for an AI support or administering agent) and
-`instructions.md` (end-user docs) in sync with your changes.
+`instructions.md` (end-user docs) in sync with your changes. This file restates neither:
+whoever changes the package has both, so it carries only what they don't — repo mechanics,
+a change that looks right and is not, where the next thing gets added, a naming trap, a
+build or test invocation particular to this repo.
 
-**Bugs and feature requests are GitHub issues on this repo** — file them as you find them.
+**Fix a defect you spot rather than reporting it** — you have the package open and the
+context to be sure. File **a GitHub issue on this repo** only when the call isn't yours to
+make: you can't pin the cause down, two defensible fixes exist, or it's too large to ride on
+the work in hand. An open issue is a report, not a queue — implement one when you're asked
+to or when it's labelled `Approved`, then close it with `Closes #<n>`.
+
 Don't record work in the repo instead: no `TODO.md`, no `NOTES.md`, no `PLAN.md`. What you
 verified, tried, and decided belongs in the commit message and the PR body.
 
 ## This repo
 
-- **The frontend and backend images are prebuilt upstream and cannot be rebuilt here**, and are published for x86_64 only — aarch64 runs them under emulation via `emulateMissingAs`.
-- **The chain follows the node, and is never configured here.** `main.ts` reads the selected node's own `store.json` off its read-only `/mnt/node` mount for the chain and — on BCHN and BCHD — the RPC credentials. `explorerNetwork()` in `startos/utils.ts` maps the node's spelling (`testnet3`) onto the frontend's (`testnet`); regtest maps to nothing and fails the service deliberately. The chain drives the `db` volume subpath, `EXPLORER_NETWORK`, and the frontend's `*_ENABLED` toggles, so a chain change must restart `main`.
-- **Dependencies are reached over the LXC bridge, never `.startos` DNS.** `startos/utils.ts` resolves each node's RPC and Fulcrum BCH's Electrum port through `sdk.host.getBridgeAddress(...).const()`. BCHN's RPC port moves per chain, so that `.const()` is also the chain-change signal for it; BCHD and Flowee pin one port for every chain, so the api daemon's health check re-reads the node's `store.json` and restarts on drift. BCHD must be dialed through its **plaintext proxy** binding (`rpc-plaintext`, 8334) — the explorer backend cannot speak TLS to `CORE_RPC`.
-- **BCHN is the one dependency whose host id is a literal.** BCHD, Flowee and Fulcrum BCH all export their host ids and ports, and `startos/utils.ts` imports them; `bitcoin-cash-node-startos/startos/utils` exports `networkPorts` and the _interface_ ids but no `rpcHostId`, so `'rpc'` is spelled out there. Exporting it upstream would remove the last literal.
-- **The api daemon's `ready` doubles as the chain-change detector.** BCHD and Flowee pin one RPC port on every chain, so the bridge address gives no signal, and the node's chain lives in a file rather than a reactive source — so each healthy poll re-reads it and restarts on drift. On BCHN the port does move per chain, so its `.const()` catches it too.
-- **`main` throws only for a chain the explorer cannot render** (regtest). An unreachable node or indexer is a warning and an unset env var, not a failure — the `.const()` heals it.
-- **The backend's `start.sh` refuses to run while its PID file exists**, so the daemon command removes a stale one and kills whatever still holds the API port before exec'ing. Without it, one crash wedges every subsequent restart.
-- **`repair-mariadb` exists because a StartOS rebuild does not remove `tc.log`.** MariaDB crash-loops on a bad magic header in that file after an unclean shutdown or a full disk; the action deletes only that file and keeps the indexed data.
+- **Keep `emulateMissing` at its default on the frontend and backend images.** They are published for x86_64 only, so `false` would drop the aarch64 build, which runs them emulated.
+- **Keep the chain re-read in the api daemon's `ready` check.** A node's chain switch leaves its old RPC binding resolvable, so the `.const()` bridge address never signals it. Dial BCHD through its `rpc-plaintext` proxy, never its native TLS RPC, which the backend cannot speak. BCHN does not export its RPC host id, so `'rpc'` is a literal in `startos/utils.ts`.
+- **Keep the stale-PID cleanup in the api daemon's command.** `start.sh` refuses to start while its PID file exists, so without it one crash wedges every restart.
+- **Throw from `main` only for a chain the explorer cannot render.** Leave an unreachable node or indexer as a warning and an unset env var; the `.const()` reads heal it.
