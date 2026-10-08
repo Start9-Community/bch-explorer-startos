@@ -26,7 +26,7 @@ const dict = {
   'Choose which Bitcoin Cash node the explorer reads chain data from.': 17,
   'The explorer restarts and re-indexes against the new node, which takes a while.': 18,
   'Node Backend': 19,
-  'The node must be installed and fully synced before the explorer can use it.': 20,
+  'Choose the node you have installed. The explorer then raises a task on it:\n- Bitcoin Cash Node: turn the transaction index on\n- Bitcoin Cash Daemon: turn pruning off and the transaction index on\n- Flowee the Hub: register the login the explorer uses': 20,
   'Bitcoin Cash Node': 21,
   'Bitcoin Cash Daemon': 22,
   'Flowee the Hub': 23,

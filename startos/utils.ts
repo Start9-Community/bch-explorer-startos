@@ -83,10 +83,6 @@ const RPC_BINDINGS: Record<
  * `null` while the node is absent — the caller then leaves the explorer's
  * `CORE_RPC_HOST` unset rather than dialing an address that cannot answer, and
  * the `.const()` heals the moment the node appears.
- *
- * On BCHN this doubles as the network-change signal: switching chains rebinds
- * RPC to a different port, so this address goes `null` and `main` re-runs
- * against whatever the node moved to.
  */
 export const nodeRpcBridge = (
   effects: T.Effects,

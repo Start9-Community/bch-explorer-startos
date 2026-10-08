@@ -106,7 +106,7 @@ Four declared: an indexer that is always required, and three nodes of which **ex
 
 **Flowee is handled differently**, and deliberately: it keeps only a hash of each RPC password and cannot report its current input, so a recurring "does the input match" task would re-appear forever no matter how many times it was answered. Its credential task is raised once by the node-selection action instead.
 
-Switching nodes clears the tasks belonging to the ones you left.
+Switching nodes hides, rather than deletes, any task still open on a node you left: it stops blocking that node, and comes back if you select it again.
 
 ## Network Access and Interfaces
 
@@ -209,7 +209,7 @@ What is kept is `store.json`, on the `main` volume: the node selection, and **th
 package_id: bch-explorer
 image: ghcr.io/bitcoincash1/bch-explorer-frontend # plus -backend and mariadb
 architectures:
-  - x86_64 # aarch64 via emulateMissingAs
+  - x86_64 # aarch64 by emulation (emulateMissing defaults to true)
 subcontainers:
   - api-sub # backend; patched in place at start
   - web-sub # frontend, nginx

@@ -241,8 +241,8 @@ export const main = sdk.setupMain(async ({ effects }) => {
           if (res.result !== 'success') return res
 
           // The node's chain lives in a file on its volume, which is not a
-          // reactive source — and on BCHD and Flowee the RPC port does not move
-          // with the chain, so the bridge address gives no signal either. This
+          // reactive source — and a node's old RPC binding still resolves after
+          // a chain switch, so the bridge address gives no signal either. This
           // is where that file gets re-read: once the API is up, a healthy poll
           // every 30s that finds the node on another chain restarts the service
           // so the right database and frontend come up.

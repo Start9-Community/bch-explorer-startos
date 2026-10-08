@@ -3,91 +3,108 @@ import { autoconfig as bchdAutoconfig } from 'bitcoin-cash-daemon-startos/starto
 import { autoconfig as bchnAutoconfig } from 'bitcoin-cash-node-startos/startos/actions/config/autoconfig'
 import { storeJson } from './fileModels/store.json'
 import { i18n } from './i18n'
+import {
+  bchdDescription,
+  bchnDescription,
+  floweeDescription,
+  fulcrumDescription,
+} from './manifest/i18n'
 import { sdk } from './sdk'
 import { INDEXER_ID, NodeId } from './utils'
 
-export const setDependencies = sdk.setupDependencies(async ({ effects }) => {
-  const store = await storeJson.read().const(effects)
-  const node = store?.nodePackageId ?? 'bitcoincashd'
+const selected = async (effects: T.Effects, node: NodeId) =>
+  ((await storeJson.read((s) => s.nodePackageId).const(effects)) ??
+    'bitcoincashd') === node
 
-  // A task is keyed `<packageId>:<actionId>`. Clearing all three drops the ones
-  // belonging to a node the user has since switched away from — otherwise they
-  // sit in the task list against a node the explorer no longer talks to.
-  await sdk.action.clearTask(
+const confirmed = async (effects: T.Effects) =>
+  !!(await storeJson.read((s) => s.nodeConfirmed).const(effects))
+
+const bitcoincashd = sdk.Dependency.optional('bitcoincashd', {
+  description: bchnDescription,
+  metadata: {
+    title: 'Bitcoin Cash Node',
+    icon: 'https://raw.githubusercontent.com/Start9-Community/bitcoin-cash-node-startos/master/icon.png',
+  },
+  versionRange: '>=29.0.0:11',
+  kind: 'running',
+  healthChecks: ['primary', 'sync-progress'],
+  enabled: async ({ effects }) => selected(effects, 'bitcoincashd'),
+}).withInit(async (effects) => {
+  if (!(await confirmed(effects))) return
+  await sdk.action.createTask(
     effects,
-    'bitcoincashd:autoconfig',
-    'bchd:autoconfig',
-    'flowee:create-dependent-credential',
+    'bitcoincashd',
+    bchnAutoconfig,
+    'critical',
+    {
+      input: {
+        kind: 'partial',
+        accept: [{ txindex: true }],
+        set: { txindex: true },
+      },
+      when: { condition: 'input-not-matches', once: false },
+      reason: i18n(
+        'BCH Explorer looks up arbitrary transactions, which needs the full transaction index',
+      ),
+    },
   )
-
-  if (store?.nodeConfirmed) {
-    if (node === 'bitcoincashd') {
-      await sdk.action.createTask(
-        effects,
-        'bitcoincashd',
-        bchnAutoconfig,
-        'critical',
-        {
-          input: {
-            kind: 'partial',
-            accept: [{ txindex: true }],
-            set: { txindex: true },
-          },
-          when: { condition: 'input-not-matches', once: false },
-          reason: i18n(
-            'BCH Explorer looks up arbitrary transactions, which needs the full transaction index',
-          ),
-        },
-      )
-    } else if (node === 'bchd') {
-      await sdk.action.createTask(effects, 'bchd', bchdAutoconfig, 'critical', {
-        input: {
-          kind: 'partial',
-          accept: [{ txindex: true, prune: 0 }],
-          set: { txindex: true, prune: 0 },
-        },
-        when: { condition: 'input-not-matches', once: false },
-        reason: i18n(
-          'BCH Explorer looks up arbitrary transactions, which needs an unpruned node and the full transaction index',
-        ),
-      })
-    }
-    // Flowee's task is raised by the Select Node Backend action instead: it
-    // registers a credential, which `input-not-matches` cannot judge (Flowee
-    // keeps only a hash and its action reports no current input), so a task
-    // created here would reappear on every init however many times the user
-    // had already answered it.
-  }
-
-  const nodeDependency: Record<NodeId, T.DependencyRequirement> = {
-    bitcoincashd: {
-      id: 'bitcoincashd',
-      kind: 'running',
-      versionRange: '>=29.0.0:10',
-      healthChecks: ['primary', 'sync-progress'],
-    },
-    bchd: {
-      id: 'bchd',
-      kind: 'running',
-      versionRange: '>=0.22.1:3',
-      // BCHD serves RPC over its own TLS, which the explorer backend cannot
-      // speak, so it is dialed through BCHD's plaintext proxy daemon.
-      healthChecks: ['primary', 'sync-progress', 'rpc-plaintext'],
-    },
-    flowee: {
-      id: 'flowee',
-      kind: 'running',
-      versionRange: '>=2026.5.2:12',
-      healthChecks: ['primary', 'sync-progress'],
-    },
-  }
-
-  return {
-    [node]: nodeDependency[node],
-    [INDEXER_ID]: {
-      kind: 'running',
-      versionRange: '>=2.1.1:17',
-      healthChecks: ['primary', 'sync-progress'],
-    },
-  }
 })
+
+const bchd = sdk.Dependency.optional('bchd', {
+  description: bchdDescription,
+  metadata: {
+    title: 'Bitcoin Cash Daemon',
+    icon: 'https://raw.githubusercontent.com/Start9-Community/bitcoin-cash-daemon-startos/master/icon.png',
+  },
+  versionRange: '>=0.22.2:1',
+  kind: 'running',
+  // BCHD serves RPC over its own TLS, which the explorer backend cannot
+  // speak, so it is dialed through BCHD's plaintext proxy daemon.
+  healthChecks: ['primary', 'sync-progress', 'rpc-plaintext'],
+  enabled: async ({ effects }) => selected(effects, 'bchd'),
+}).withInit(async (effects) => {
+  if (!(await confirmed(effects))) return
+  await sdk.action.createTask(effects, 'bchd', bchdAutoconfig, 'critical', {
+    input: {
+      kind: 'partial',
+      accept: [{ txindex: true, prune: 0 }],
+      set: { txindex: true, prune: 0 },
+    },
+    when: { condition: 'input-not-matches', once: false },
+    reason: i18n(
+      'BCH Explorer looks up arbitrary transactions, which needs an unpruned node and the full transaction index',
+    ),
+  })
+})
+
+// Flowee's credential task is raised by Select Node Backend instead: Flowee
+// keeps only a hash and reports no current input, so `input-not-matches` here
+// would re-raise it on every init.
+const flowee = sdk.Dependency.optional('flowee', {
+  description: floweeDescription,
+  metadata: {
+    title: 'Flowee the Hub',
+    icon: 'https://raw.githubusercontent.com/Start9-Community/flowee-the-hub-startos/master/icon.png',
+  },
+  versionRange: '>=2026.5.2:12',
+  kind: 'running',
+  healthChecks: ['primary', 'sync-progress'],
+  enabled: async ({ effects }) => selected(effects, 'flowee'),
+})
+
+const fulcrumBch = sdk.Dependency.required(INDEXER_ID, {
+  description: fulcrumDescription,
+  metadata: {
+    title: 'Fulcrum BCH',
+    icon: 'https://raw.githubusercontent.com/Start9-Community/fulcrum-bch-startos/master/icon.png',
+  },
+  versionRange: '>=2.1.1:17',
+  kind: 'running',
+  healthChecks: ['primary', 'sync-progress'],
+})
+
+export const dependencies = sdk.Dependencies.of()
+  .addDependency(bitcoincashd)
+  .addDependency(bchd)
+  .addDependency(flowee)
+  .addDependency(fulcrumBch)
