@@ -20,7 +20,11 @@ export const manifest = setupManifest({
     },
     backend: {
       source: {
-        dockerTag: 'ghcr.io/bitcoincash1/bch-explorer-backend:3.12.0',
+        dockerBuild: {
+          buildArgs: {
+            IMAGE: 'ghcr.io/bitcoincash1/bch-explorer-backend:3.12.0',
+          },
+        },
       },
       arch: ['x86_64'],
     },
