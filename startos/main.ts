@@ -221,7 +221,8 @@ export const main = sdk.setupMain(async ({ effects }) => {
           EXPLORER_AUDIT: 'true',
           EXPLORER_GOGGLES_INDEXING: 'true',
           ...(node === 'flowee' && {
-            NODE_OPTIONS: '--require /backend/cache/flowee-require-hook.js',
+            NODE_OPTIONS:
+              '--require /backend/cache/flowee-require-hook.js --use-openssl-ca',
           }),
         },
       },

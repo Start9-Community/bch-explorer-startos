@@ -51,6 +51,8 @@ Three images: the two halves of the explorer, and a MariaDB sidecar.
 
 **The explorer images are published for x86_64 only**, so on ARM they run under emulation. That is slower, and it is why they cannot simply be rebuilt here.
 
+**The backend carries one thin build layer, the root `Dockerfile`**, which only upgrades its CA store and points Node at it (`--use-openssl-ca`, also appended to the Flowee `NODE_OPTIONS` in `main.ts`). It is temporary and comes out once upstream ships an image built on a fixed store.
+
 **Because they cannot be rebuilt, they are patched at start.** The backend is a published artifact, so each fix is applied in place before its daemon launches, and every patch is written to no-op when its pattern is absent — so a fix upstream has since made unnecessary costs nothing rather than breaking the start.
 
 What those patches cover is worth knowing, because it is the reason this package exists at all: the upstream explorer targets one node implementation, and the other two answer differently. The patches reconcile the RPC dialect — a block's transactions under a different key, a missing transaction count, statistics and chain-tip calls that are simply unimplemented, a two-argument raw-transaction call, an address validation that omits the field the Electrum path needs, and mempool entries missing the fields the frontend renders.
