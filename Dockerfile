@@ -4,8 +4,16 @@ FROM --platform=$BUILDPLATFORM debian:trixie-slim AS ca
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/* \
  && ! grep -Rq MIICTjCCAdOgAwIBAgIKPPYHqWhwDtqLhDAKBggqhkjOPQQDAzBr /etc/ssl/certs
 
+FROM --platform=$BUILDPLATFORM debian:trixie-slim AS brotli
+ARG TARGETARCH
+RUN dpkg --add-architecture ${TARGETARCH} && apt-get update \
+ && mkdir /deb && cd /deb && apt-get download libbrotli1:${TARGETARCH}
+
 FROM ${IMAGE}
 USER root
+COPY --from=brotli /deb /tmp/brotli
+RUN dpkg -i /tmp/brotli/*.deb && rm -rf /tmp/brotli \
+ && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' libbrotli1)" ge 1.1.0-2+deb13u1
 # OpenSSL also reads the per-root links, so the whole tree is replaced rather than just the bundle.
 RUN rm -rf /etc/ssl/certs /usr/share/ca-certificates /etc/ca-certificates.conf
 COPY --from=ca /etc/ssl/certs /etc/ssl/certs

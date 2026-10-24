@@ -51,7 +51,7 @@ Three images: the two halves of the explorer, and a MariaDB sidecar.
 
 **The explorer images are published for x86_64 only**, so on ARM they run under emulation. That is slower, and it is why they cannot simply be rebuilt here.
 
-**The backend carries one thin build layer, the root `Dockerfile`**, which only upgrades its CA store and points Node at it (`--use-openssl-ca`, also appended to the Flowee `NODE_OPTIONS` in `main.ts`). It is temporary and comes out once upstream ships an image built on a fixed store.
+**The backend carries one thin build layer, the root `Dockerfile`**, which upgrades its CA store, points Node at it (`--use-openssl-ca`, also appended to the Flowee `NODE_OPTIONS` in `main.ts`), and installs `libbrotli1` at version `1.1.0-2+deb13u1` or newer. The certificate store and Brotli package are fetched on the build platform to avoid apt signature-verification failures under emulation. The layer is temporary and comes out once upstream ships both fixes.
 
 **Because they cannot be rebuilt, they are patched at start.** The backend is a published artifact, so each fix is applied in place before its daemon launches, and every patch is written to no-op when its pattern is absent — so a fix upstream has since made unnecessary costs nothing rather than breaking the start.
 
