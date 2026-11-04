@@ -36,11 +36,5 @@ pin is in `startos/manifest/index.ts`, at the `dockerTag` of `images.frontend` a
    Then re-check every patch in `startos/shims.ts` against the new images. They are regex
    and `sed`/`awk` replacements that no-op silently when their pattern stops matching, so
    an upstream rename removes the fix rather than failing the build.
-2. Raise `version` in `startos/versions/current.ts` to `<new upstream>:0` and
-   rewrite its `releaseNotes` in all five locales. Only add a new version file if
-   the bump needs a migration — see
-   [Versions](https://docs.start9.com/packaging/versions.html).
-3. Read the upstream release notes for changes to the backend files patched in
-   `startos/shims.ts`. Each patch is a regex replacement that silently no-ops
-   when its pattern no longer matches, so a renamed function does not fail the
-   build — it removes the fix. Check the patched call sites still exist.
+2. Read the upstream release notes for changes to the backend files patched in
+   `startos/shims.ts`, and check the patched call sites still exist.
