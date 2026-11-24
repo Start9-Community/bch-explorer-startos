@@ -35,6 +35,6 @@ verified, tried, and decided belongs in the commit message and the PR body.
 ## This repo
 
 - **Keep `emulateMissing` at its default on the frontend and backend images.** They are published for x86_64 only, so `false` would drop the aarch64 build, which runs them emulated.
-- **Keep the chain re-read in the api daemon's `ready` check.** A node's chain switch leaves its old RPC binding resolvable, so the `.const()` bridge address never signals it. Dial BCHD through its `rpc-plaintext` proxy, never its native TLS RPC, which the backend cannot speak. BCHN does not export its RPC host id, so `'rpc'` is a literal in `startos/utils.ts`.
+- **Mount only the node's `public` volume, never its `main`, and keep the `rpc.json` read `.const()`.** That read is what restarts the explorer on a chain switch: the old RPC binding stays resolvable, so the bridge address never signals it. Dial BCHD through its `rpc-plaintext` proxy, never its native TLS RPC, which the backend cannot speak. BCHN does not export its RPC host id, so `'rpc'` is a literal in `startos/utils.ts`.
 - **Keep the stale-PID cleanup in the api daemon's command.** `start.sh` refuses to start while its PID file exists, so without it one crash wedges every restart.
 - **Throw from `main` only for a chain the explorer cannot render.** Leave an unreachable node or indexer as a warning and an unset env var; the `.const()` reads heal it.

@@ -7,12 +7,12 @@ export const repairMariaDb = sdk.Action.withoutInput(
   async () => ({
     name: i18n('Repair MariaDB'),
     description: i18n(
-      'Delete the MariaDB transaction-coordinator log (tc.log) and restart the explorer. Use this when the Database health check reports a crash after an unclean shutdown or a full disk (Bad magic header in tc log). Indexed explorer data is kept.',
+      'Delete the MariaDB transaction-coordinator log (tc.log). Use this when the Database health check reports a crash after an unclean shutdown or a full disk (Bad magic header in tc log). Indexed explorer data is kept.',
     ),
     warning: i18n(
-      'The explorer will restart. Use this only if MariaDB is crash-looping on tc.log. A StartOS Rebuild does not remove that file.',
+      'Use this only if MariaDB is crash-looping on tc.log, and start the explorer again afterwards. A StartOS Rebuild does not remove that file.',
     ),
-    allowedStatuses: 'any',
+    allowedStatuses: 'only-stopped',
     group: i18n('Maintenance'),
     visibility: 'enabled',
   }),
@@ -46,15 +46,14 @@ export const repairMariaDb = sdk.Action.withoutInput(
         ])
       },
     )
-    await effects.restart()
     return {
       version: '1',
       title: i18n('MariaDB repaired'),
       message:
         removed === 0
-          ? i18n('No tc.log was present. The explorer is restarting anyway.')
+          ? i18n('No tc.log was present. Nothing was changed.')
           : i18n(
-              'Removed ${count} tc.log file(s). MariaDB will recreate a clean log on startup. Indexed data was not deleted.',
+              'Removed ${count} tc.log file(s). MariaDB recreates a clean log when the explorer next starts. Indexed data was not deleted.',
               { count: String(removed) },
             ),
       result: null,

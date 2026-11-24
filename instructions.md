@@ -55,9 +55,9 @@ transaction-coordinator log was left corrupt by an unclean shutdown or a full
 disk. StartOS **Rebuild** remakes the container but leaves that file on the
 database volume, so it will not fix this.
 
-Run **Actions → Repair MariaDB**. It deletes `tc.log` for every network on the
-database volume and restarts the explorer. Indexed chain data is not deleted.
-MariaDB recreates a clean `tc.log` on the next start.
+Stop the explorer, then run **Actions → Repair MariaDB**. It deletes `tc.log`
+for every network on the database volume. Indexed chain data is not deleted.
+Start the explorer again; MariaDB recreates a clean `tc.log` on that start.
 
 ## Limitations
 
