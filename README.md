@@ -104,8 +104,6 @@ Four declared: an indexer that is always required, and three nodes of which **ex
 
 **Unlike its sibling mining packages, these are gated on being synced.** An explorer showing a partial chain is showing wrong answers, not late ones.
 
-**Each node's version floor is its first build that publishes `rpc.json` on its `public` volume** — Bitcoin Cash Node `29.0.0:17`, Bitcoin Cash Daemon `0.22.2:8`, Flowee the Hub `2026.5.2:19`. Against an older node the explorer cannot learn the chain or the login.
-
 **Bitcoin Cash Daemon needs a third check**, because it serves RPC over its own TLS which the explorer backend cannot speak — so it is dialed through that package's plaintext proxy, and the proxy is a binding that has to be up in its own right.
 
 **The node needs configuring, and the package asks for it.** The explorer looks up arbitrary transactions, which requires a full transaction index — and on one node an unpruned chain as well. So selecting a node raises a `critical` task **on that node**, pre-filled and locked to exactly those settings, recurring rather than one-shot so turning the index off later brings the prompt back.
@@ -183,7 +181,7 @@ Three checks, one per daemon.
 
 The chain runs in order — the frontend waits for the backend, which waits for the database — so a failure at the bottom shows as the layers above never starting.
 
-**When the selected node is not installed, or too old to publish `rpc.json`, none of the three daemons starts.** The service shows a single failing "Node" check saying so instead, and comes up on its own once the node publishes.
+**When the selected node is not installed, none of the three daemons starts.** The service shows a single failing "Node" check saying so instead, and comes up on its own once the node publishes.
 
 ## Backups and Restore
 
