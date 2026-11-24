@@ -15,13 +15,10 @@ import {
   electrumBridge,
   explorerNetwork,
   hostPort,
-  nodeMountpoint,
   nodeRpcBridge,
+  readNodeRpc,
   webPort,
 } from './utils'
-
-/** The fields `main` reads out of the selected node's own `store.json`. */
-type NodeStore = { network?: string; rpcUser?: string; rpcPassword?: string }
 
 export const main = sdk.setupMain(async ({ effects }) => {
   console.info(i18n('Starting BCH Explorer'))
@@ -32,51 +29,29 @@ export const main = sdk.setupMain(async ({ effects }) => {
   const node = store?.nodePackageId ?? 'bitcoincashd'
   const dbPassword = store?.dbPassword ?? ''
 
-  // The node's volume is mounted read-only purely so this can be read: the
-  // chain it is on, and — on BCHN and BCHD, which publish them — the RPC
-  // credentials. Flowee stores only hashed `rpcauth` entries, so the credential
-  // for it is the one this package minted and registered.
   const apiSub = sdk.SubContainer.of(
     effects,
     { imageId: 'backend' },
-    sdk.Mounts.of()
-      .mountVolume({
-        volumeId: 'main',
-        subpath: '/cache',
-        mountpoint: '/backend/cache',
-        readonly: false,
-      })
-      .mountDependency({
-        dependencyId: node,
-        volumeId: 'main',
-        subpath: null,
-        mountpoint: nodeMountpoint,
-        readonly: true,
-      }),
+    sdk.Mounts.of().mountVolume({
+      volumeId: 'main',
+      subpath: '/cache',
+      mountpoint: '/backend/cache',
+      readonly: false,
+    }),
     'api-sub',
   )
 
-  const readNodeStore = async (): Promise<NodeStore | null> => {
-    const res = await apiSub
-      .exec(['cat', `${nodeMountpoint}/store.json`])
-      .catch(() => null)
-    if (!res || res.exitCode !== 0) return null
-    try {
-      return JSON.parse(res.stdout.toString()) as NodeStore
-    } catch {
-      return null
-    }
-  }
-
-  const nodeStore = await readNodeStore()
-  if (!nodeStore) {
+  // Flowee stores only hashed `rpcauth` entries, so the credential for it is
+  // the one this package minted and registered.
+  const nodeRpc = await readNodeRpc(effects, node)
+  if (!nodeRpc) {
     console.warn(
       i18n(
         'Could not read the settings of the selected node. Assuming mainnet until it reports otherwise.',
       ),
     )
   }
-  const nodeNetwork = nodeStore?.network ?? 'mainnet'
+  const nodeNetwork = nodeRpc?.network ?? 'mainnet'
   const network = explorerNetwork(nodeNetwork)
   if (!network) {
     throw new Error(
@@ -113,8 +88,8 @@ export const main = sdk.setupMain(async ({ effects }) => {
           password: store?.floweeRpcPassword ?? '',
         }
       : {
-          user: nodeStore?.rpcUser ?? node,
-          password: nodeStore?.rpcPassword ?? '',
+          user: nodeRpc?.rpcUser ?? node,
+          password: nodeRpc?.rpcPassword ?? '',
         }
 
   // The volume subpath is created with restrictive ownership and the backend
@@ -228,37 +203,13 @@ export const main = sdk.setupMain(async ({ effects }) => {
       },
       ready: {
         display: i18n('API'),
-        fn: async () => {
-          const res = await sdk.healthCheck.checkPortListening(
-            effects,
-            apiPort,
-            {
-              successMessage: i18n('The API is ready on ${network}', {
-                network,
-              }),
-              errorMessage: i18n('The API is starting'),
-            },
-          )
-          if (res.result !== 'success') return res
-
-          // The node's chain lives in a file on its volume, which is not a
-          // reactive source — and a node's old RPC binding still resolves after
-          // a chain switch, so the bridge address gives no signal either. This
-          // is where that file gets re-read: once the API is up, a healthy poll
-          // every 30s that finds the node on another chain restarts the service
-          // so the right database and frontend come up.
-          const current = (await readNodeStore())?.network
-          if (!current || current === nodeNetwork) return res
-
-          console.info(
-            i18n('The node switched from ${from} to ${to}. Restarting.', {
-              from: nodeNetwork,
-              to: current,
+        fn: () =>
+          sdk.healthCheck.checkPortListening(effects, apiPort, {
+            successMessage: i18n('The API is ready on ${network}', {
+              network,
             }),
-          )
-          await effects.restart()
-          return { result: 'loading', message: null } as const
-        },
+            errorMessage: i18n('The API is starting'),
+          }),
       },
       requires: ['db'],
     })

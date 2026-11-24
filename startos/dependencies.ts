@@ -25,7 +25,7 @@ const bitcoincashd = sdk.Dependency.optional('bitcoincashd', {
     title: 'Bitcoin Cash Node',
     icon: 'https://raw.githubusercontent.com/Start9-Community/bitcoin-cash-node-startos/master/icon.png',
   },
-  versionRange: '>=29.0.0:11',
+  versionRange: '>=29.0.0:17',
   kind: 'running',
   healthChecks: ['primary', 'sync-progress'],
   enabled: async ({ effects }) => selected(effects, 'bitcoincashd'),
@@ -56,7 +56,7 @@ const bchd = sdk.Dependency.optional('bchd', {
     title: 'Bitcoin Cash Daemon',
     icon: 'https://raw.githubusercontent.com/Start9-Community/bitcoin-cash-daemon-startos/master/icon.png',
   },
-  versionRange: '>=0.22.2:1',
+  versionRange: '>=0.22.2:8',
   kind: 'running',
   // BCHD serves RPC over its own TLS, which the explorer backend cannot
   // speak, so it is dialed through BCHD's plaintext proxy daemon.
@@ -86,7 +86,7 @@ const flowee = sdk.Dependency.optional('flowee', {
     title: 'Flowee the Hub',
     icon: 'https://raw.githubusercontent.com/Start9-Community/flowee-the-hub-startos/master/icon.png',
   },
-  versionRange: '>=2026.5.2:12',
+  versionRange: '>=2026.5.2:19',
   kind: 'running',
   healthChecks: ['primary', 'sync-progress'],
   enabled: async ({ effects }) => selected(effects, 'flowee'),

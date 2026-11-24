@@ -61,17 +61,17 @@ What those patches cover is worth knowing, because it is the reason this package
 
 ## Volume and Data Layout
 
-Two volumes, plus a read-only view of the selected node's.
+Two volumes, plus a read-only view of what the selected node publishes for its dependents.
 
-| Volume                 | Mount Point      | Purpose                                     |
-| ---------------------- | ---------------- | ------------------------------------------- |
-| `main`                 | `/backend/cache` | The backend's cache, at a subpath           |
-| `db`                   | `/var/lib/mysql` | MariaDB's data — **at a per-chain subpath** |
-| The node's `main` (ro) | `/mnt/node`      | The node's own store                        |
+| Volume                        | Mount Point                        | Purpose                                     |
+| ----------------------------- | ---------------------------------- | ------------------------------------------- |
+| `main`                        | `/backend/cache`                   | The backend's cache, at a subpath           |
+| `db`                          | `/var/lib/mysql`                   | MariaDB's data — **at a per-chain subpath** |
+| The node's `public/rpc/` (ro) | `/mnt/node-rpc`, package code only | `rpc.json`: the node's chain and RPC login  |
 
 **Each chain gets its own database directory.** The `db` volume is mounted at a subpath named for the chain, so switching chains does not mix one chain's indexed data into another's — and switching back finds the earlier index still there.
 
-**The node's volume is mounted for its store, not for chain data.** The explorer never reads the chain from disk — what it needs from that mount is which chain the node is on and, for two of the three nodes, the RPC credentials published there.
+**Only what the node publishes for its dependents is mounted, and only into the package's own container.** The explorer never reads the chain from disk — what it needs from that mount is which chain the node is on and, for two of the three nodes, the RPC credentials published there. The read is reactive, so a node that switches chains or changes its RPC login restarts the explorer onto it, bringing up that chain's database and frontend.
 
 **The cache directory is made world-writable at start**, because the mounted subpath arrives with restrictive ownership and the backend runs unprivileged. It is visible only inside that container.
 
@@ -101,6 +101,8 @@ Four declared: an indexer that is always required, and three nodes of which **ex
 | Flowee the Hub      | Only if selected | `primary`, `sync-progress`                  | The same                    |
 
 **Unlike its sibling mining packages, these are gated on being synced.** An explorer showing a partial chain is showing wrong answers, not late ones.
+
+**Each node's version floor is its first build that publishes `rpc.json` on its `public` volume** — Bitcoin Cash Node `29.0.0:17`, Bitcoin Cash Daemon `0.22.2:8`, Flowee the Hub `2026.5.2:19`. Against an older node the explorer cannot learn the chain or the login.
 
 **Bitcoin Cash Daemon needs a third check**, because it serves RPC over its own TLS which the explorer backend cannot speak — so it is dialed through that package's plaintext proxy, and the proxy is a binding that has to be up in its own right.
 
@@ -171,15 +173,13 @@ The node-side configuration task is **recurring**: it re-raises whenever the nod
 
 Three checks, one per daemon.
 
-| Check | Displayed as | Method                                    |
-| ----- | ------------ | ----------------------------------------- |
-| `db`  | "Database"   | The database port is listening            |
-| `api` | "API"        | The backend's port, then the node's chain |
-| `web` | "Web UI"     | The frontend's port is listening          |
+| Check | Displayed as | Method                           |
+| ----- | ------------ | -------------------------------- |
+| `db`  | "Database"   | The database port is listening   |
+| `api` | "API"        | The backend's port is listening  |
+| `web` | "Web UI"     | The frontend's port is listening |
 
 The chain runs in order — the frontend waits for the backend, which waits for the database — so a failure at the bottom shows as the layers above never starting.
-
-**The API check does double duty, and the second job is the interesting one.** Once the backend is up, each poll re-reads which chain the node is on and restarts the service if it has moved. That check is the only thing that can notice: the node's chain lives in a file, which is not a reactive source, and on two of the three nodes the RPC port does not move with the chain either — so the address gives no signal.
 
 ## Backups and Restore
 
@@ -219,7 +219,7 @@ subcontainers:
 volumes:
   main: /backend/cache # mounted at a subpath; chmod 777 at start for the unprivileged backend
   db: /var/lib/mysql
-  # the selected node's main volume is read-only at /mnt/node — for its store, not chain data
+  # the selected node's public/rpc is read-only at /mnt/node-rpc in the package container — rpc.json only
 file_models:
   - store.json # dbPassword, nodePackageId, nodeConfirmed, flowee credentials
 startos_managed_env_vars:
@@ -245,6 +245,6 @@ tasks:
   - { on: flowee, action: create-dependent-credential, severity: critical } # from the action
 health_checks:
   - db # displayed "Database"
-  - api # displayed "API"; also re-reads the node's chain and restarts on a change
+  - api # displayed "API"
   - web # displayed "Web UI"
 ```

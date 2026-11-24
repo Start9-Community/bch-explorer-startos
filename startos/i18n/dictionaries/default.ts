@@ -11,7 +11,6 @@ const dict = {
   'The database is ready': 6,
   'The database is starting': 7,
   API: 8,
-  'The node switched from ${from} to ${to}. Restarting.': 9,
   'The API is ready on ${network}': 10,
   'The API is starting': 11,
   'Web UI': 12,
