@@ -57,17 +57,19 @@ Three images: the two halves of the explorer, and a MariaDB sidecar.
 
 What those patches cover is worth knowing, because it is the reason this package exists at all: the upstream explorer targets one node implementation, and the other two answer differently. The patches reconcile the RPC dialect — a block's transactions under a different key, a missing transaction count, statistics and chain-tip calls that are simply unimplemented, a two-argument raw-transaction call, an address validation that omits the field the Electrum path needs, and mempool entries missing the fields the frontend renders.
 
+**Address lookups fill the gap without loosening validation.** Where a node validates an address but omits its `scriptPubKey`, the package derives it with its own decoder, which verifies the CashAddr checksum (with the chain's prefix, `bitcoincash` or `bchtest`) or the Base58Check checksum and that chain's version byte. Only on Flowee, whose `validateaddress` rejects every Cash address, does that verified decode overturn the node's "not valid"; on Bitcoin Cash Node and Bitcoin Cash Daemon the node's answer stands.
+
 **The backend also refuses to start while its PID file exists**, so its command removes a stale one and kills any process still holding the port before launching — otherwise one crash wedges every restart after it.
 
 ## Volume and Data Layout
 
 Two volumes, plus a read-only view of what the selected node publishes for its dependents.
 
-| Volume                        | Mount Point                        | Purpose                                     |
-| ----------------------------- | ---------------------------------- | ------------------------------------------- |
-| `main`                        | `/backend/cache`                   | The backend's cache, at a subpath           |
-| `db`                          | `/var/lib/mysql`                   | MariaDB's data — **at a per-chain subpath** |
-| The node's `public/rpc/` (ro) | `/mnt/node-rpc`, package code only | `rpc.json`: the node's chain and RPC login  |
+| Volume                   | Mount Point                           | Purpose                                        |
+| ------------------------ | ------------------------------------- | ---------------------------------------------- |
+| `main`                   | `/backend/cache`                      | The backend's cache, at a subpath              |
+| `db`                     | `/var/lib/mysql`                      | MariaDB's data — **at a per-chain subpath**    |
+| The node's `public` (ro) | `/mnt/node-public`, package code only | `rpc/rpc.json`: the node's chain and RPC login |
 
 **Each chain gets its own database directory.** The `db` volume is mounted at a subpath named for the chain, so switching chains does not mix one chain's indexed data into another's — and switching back finds the earlier index still there.
 
@@ -150,12 +152,12 @@ Chooses which of the three Bitcoin Cash nodes the explorer reads from.
 
 ### Repair MariaDB
 
-Deletes MariaDB's transaction-coordinator log and restarts.
+Deletes MariaDB's transaction-coordinator log. Start the explorer again afterwards; MariaDB recreates a clean log on that start.
 
 - **For one specific failure**: a database that crash-loops after an unclean shutdown or a full disk, reporting a bad magic header in that log.
 - **Indexed explorer data is kept.** Only the coordinator log is removed.
 - **A StartOS rebuild does not remove that file**, which is why this action exists at all.
-- **Runnable at any status.**
+- **Runnable only while the explorer is stopped**, so the log is never removed from under a running database.
 
 ## Tasks
 
@@ -180,6 +182,8 @@ Three checks, one per daemon.
 | `web` | "Web UI"     | The frontend's port is listening |
 
 The chain runs in order — the frontend waits for the backend, which waits for the database — so a failure at the bottom shows as the layers above never starting.
+
+**When the selected node is not installed, or too old to publish `rpc.json`, none of the three daemons starts.** The service shows a single failing "Node" check saying so instead, and comes up on its own once the node publishes.
 
 ## Backups and Restore
 
@@ -219,7 +223,7 @@ subcontainers:
 volumes:
   main: /backend/cache # mounted at a subpath; chmod 777 at start for the unprivileged backend
   db: /var/lib/mysql
-  # the selected node's public/rpc is read-only at /mnt/node-rpc in the package container — rpc.json only
+  # the selected node's public volume is read-only at /mnt/node-public in the package container — rpc/rpc.json only
 file_models:
   - store.json # dbPassword, nodePackageId, nodeConfirmed, flowee credentials
 startos_managed_env_vars:
@@ -238,7 +242,7 @@ interfaces:
   web: { type: ui, port: 8080 } # no authentication; backend and db are internal
 actions:
   - select-node
-  - repair-mariadb # deletes tc.log only; a StartOS rebuild does not
+  - repair-mariadb # only while stopped; deletes tc.log only, which a StartOS rebuild does not
 tasks:
   - { action: select-node, severity: critical } # install
   - { on: <chosen node>, action: autoconfig, severity: critical, once: false } # txindex

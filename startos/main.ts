@@ -29,6 +29,35 @@ export const main = sdk.setupMain(async ({ effects }) => {
   const node = store?.nodePackageId ?? 'bitcoincashd'
   const dbPassword = store?.dbPassword ?? ''
 
+  const nodeRpc = await readNodeRpc(effects, node)
+  if (!nodeRpc) {
+    return sdk.Daemons.of(effects).addHealthCheck('node', {
+      ready: {
+        display: i18n('Node'),
+        gracePeriod: 0,
+        trigger: sdk.trigger.onceTrigger,
+        fn: async () =>
+          ({
+            result: 'failure',
+            message: i18n(
+              'The ${node} node is not installed, or is too old to share its network and RPC login. Install or update it, then start it.',
+              { node },
+            ),
+          }) as const,
+      },
+      requires: [],
+    })
+  }
+  const nodeNetwork = nodeRpc.network
+  const network = explorerNetwork(nodeNetwork)
+  if (!network) {
+    throw new Error(
+      i18n('BCH Explorer has no frontend for the ${network} chain.', {
+        network: nodeNetwork,
+      }),
+    )
+  }
+
   const apiSub = sdk.SubContainer.of(
     effects,
     { imageId: 'backend' },
@@ -40,26 +69,6 @@ export const main = sdk.setupMain(async ({ effects }) => {
     }),
     'api-sub',
   )
-
-  // Flowee stores only hashed `rpcauth` entries, so the credential for it is
-  // the one this package minted and registered.
-  const nodeRpc = await readNodeRpc(effects, node)
-  if (!nodeRpc) {
-    console.warn(
-      i18n(
-        'Could not read the settings of the selected node. Assuming mainnet until it reports otherwise.',
-      ),
-    )
-  }
-  const nodeNetwork = nodeRpc?.network ?? 'mainnet'
-  const network = explorerNetwork(nodeNetwork)
-  if (!network) {
-    throw new Error(
-      i18n('BCH Explorer has no frontend for the ${network} chain.', {
-        network: nodeNetwork,
-      }),
-    )
-  }
 
   const rpc = await nodeRpcBridge(effects, node, network)
   if (!rpc) {
@@ -81,6 +90,8 @@ export const main = sdk.setupMain(async ({ effects }) => {
   const rpcHostPort = rpc && hostPort(rpc)
   const electrumHostPort = electrum && hostPort(electrum)
 
+  // Flowee stores only hashed `rpcauth` entries, so the credential for it is
+  // the one this package minted and registered.
   const rpcCredentials =
     node === 'flowee'
       ? {
@@ -88,8 +99,8 @@ export const main = sdk.setupMain(async ({ effects }) => {
           password: store?.floweeRpcPassword ?? '',
         }
       : {
-          user: nodeRpc?.rpcUser ?? node,
-          password: nodeRpc?.rpcPassword ?? '',
+          user: nodeRpc.rpcUser ?? node,
+          password: nodeRpc.rpcPassword ?? '',
         }
 
   // The volume subpath is created with restrictive ownership and the backend
@@ -173,6 +184,10 @@ export const main = sdk.setupMain(async ({ effects }) => {
         env: {
           EXPLORER_BACKEND: 'electrum',
           EXPLORER_NETWORK: network,
+          // Read by the address decoder `shims.ts` installs in the backend.
+          STARTOS_CASHADDR_PREFIX:
+            network === 'mainnet' ? 'bitcoincash' : 'bchtest',
+          STARTOS_NODE: node,
           EXPLORER_INDEXING_BLOCKS_AMOUNT: '-1',
           // An absent dependency is left absent rather than pointed at an
           // address that cannot answer; the bridge read heals when it returns.
