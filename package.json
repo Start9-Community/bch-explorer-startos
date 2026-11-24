@@ -4,8 +4,7 @@
     "@start9labs/start-sdk": "4.1.0",
     "bitcoin-cash-daemon-startos": "github:Start9-Community/bitcoin-cash-daemon-startos#next",
     "bitcoin-cash-node-startos": "github:Start9-Community/bitcoin-cash-node-startos#next",
-    "flowee-startos": "github:Start9-Community/flowee-the-hub-startos#next",
-    "fulcrum-bch-startos": "github:Start9-Community/fulcrum-bch-startos#next"
+    "flowee-startos": "github:Start9-Community/flowee-the-hub-startos#next"
   },
   "overrides": {
     "@start9labs/start-sdk": "$@start9labs/start-sdk"

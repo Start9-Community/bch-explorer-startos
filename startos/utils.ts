@@ -8,7 +8,6 @@ import {
   rpcHostId as floweeRpcHostId,
   rpcPort as floweeRpcPort,
 } from 'flowee-startos/startos/utils'
-import { electrumHostId, electrumPort } from 'fulcrum-bch-startos/startos/utils'
 import { sdk } from './sdk'
 
 export const webPort = 8080
@@ -160,8 +159,9 @@ export const electrumBridge = (effects: T.Effects) =>
   sdk.host
     .getBridgeAddress(effects, {
       packageId: INDEXER_ID,
-      hostId: electrumHostId,
-      internalPort: electrumPort,
+      // fulcrum-bch-startos's `electrumHostId` and `electrumPort` (startos/utils.ts).
+      hostId: 'main',
+      internalPort: 50001,
     })
     .const()
 
