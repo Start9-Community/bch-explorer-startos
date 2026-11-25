@@ -138,11 +138,18 @@ export const nginxMiningPoolsProxy = [
  *
  * The alternation must list the network names the *frontend* uses, which are
  * this package's `ExplorerNetwork` values — not the node's own spelling.
+ *
+ * The backend's `internal/` routes are refused first: nginx tries regex
+ * locations in file order, and the backend routes case-insensitively. The
+ * pattern is unanchored because the `/ws` locations' rewrite can also reach them.
  */
 export const nginxNetworkRoutes = [
   `CONF=/etc/nginx/conf.d/nginx-explorer.conf`,
   `MARKER='# startos-network-routes'`,
   `if grep -qF "$MARKER" "$CONF" 2>/dev/null; then echo "[frontend-shim] network routes already present"; exit 0; fi`,
+  `echo 'location ~* api/(v1/)?internal {' >> "$CONF"`,
+  `echo '    return 403;' >> "$CONF"`,
+  `echo '}' >> "$CONF"`,
   `echo 'location ~ ^/(chipnet|testnet4|scalenet|testnet)/api/v1/ws$ {' >> "$CONF"`,
   `echo '    rewrite ^/[^/]+(/api/v1/ws)$ $1 break;' >> "$CONF"`,
   `echo '    proxy_pass http://__EXPLORER_BACKEND_MAINNET_HTTP_HOST__:__EXPLORER_BACKEND_MAINNET_HTTP_PORT__;' >> "$CONF"`,
