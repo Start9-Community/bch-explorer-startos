@@ -122,7 +122,7 @@ One interface.
 
 Bound on the `main` MultiHost over HTTP and not masked.
 
-**There is no login**, and the content is public blockchain data. The backend and the database are internal to the service and are not exported — the frontend reaches the backend over the service's own loopback, and MariaDB is bound to loopback explicitly.
+**There is no login**, and the content is public blockchain data. The backend and the database are internal to the service and are not exported — the frontend reaches the backend over the service's own loopback, and MariaDB is bound to loopback explicitly. The backend's `internal/` API routes, which include a hashrate reindex, are refused at the frontend's nginx under every network prefix and in any letter case, so they are not reachable through the interface.
 
 ## Installation and First-Run Flow
 
